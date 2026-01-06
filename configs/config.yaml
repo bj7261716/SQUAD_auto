@@ -1,0 +1,163 @@
+# 運氣突擊隊 AI 系統配置檔案
+# 針對 GTX 1650 (4GB VRAM) + 16GB RAM 優化
+
+# ===== 系統設定 =====
+system:
+  device: "cuda"  # 使用 GPU (自動偵測)
+  num_workers: 4  # CPU 工作線程 (Ryzen 5 3600 有 6 核心，保留 2 核心給系統)
+  seed: 42  # 隨機種子，確保可重現性
+
+# ===== 螢幕擷取設定 =====
+capture:
+  # 模擬器視窗位置 (需要手動調整)
+  region:
+    left: 157
+    top: 46
+    width: 545
+    height: 970
+  
+  # 擷取設定
+  fps: 30  # 每秒擷取幀數
+  # resize: [360, 640]  # 暫時關閉縮放，確保模板匹配準確
+  color_mode: "RGB"
+
+# ===== 圖像識別設定 =====
+vision:
+  # YOLO 設定 (針對 4GB VRAM 優化)
+  yolo:
+    model: "yolov8n.pt"  # nano 版本 (最輕量)
+    img_size: 640
+    conf_threshold: 0.5  # 信心閾值
+    iou_threshold: 0.45
+    device: 0  # GPU 0
+    
+  # 訓練設定
+  training:
+    batch_size: 8  # 4GB VRAM 建議值
+    epochs: 100
+    patience: 20  # Early stopping
+    workers: 4
+    cache: "ram"  # 使用 RAM 快取加速
+    
+  # 類別定義
+  classes:
+    - "player"
+    - "enemy"
+    - "health_bar"
+    - "skill_icon"
+    - "button"
+
+# ===== AI 決策設定 =====
+ai:
+  # 演算法選擇
+  algorithm: "DQN"  # Deep Q-Network
+  
+  # DQN 參數
+  dqn:
+    # 網路架構
+    hidden_layers: [256, 128, 64]
+    activation: "relu"
+    
+    # 訓練參數 (針對 16GB RAM 優化)
+    batch_size: 32  # 經驗回放批次
+    memory_size: 10000  # 經驗池大小 (減少以節省記憶體)
+    gamma: 0.99  # 折扣因子
+    learning_rate: 0.0001
+    
+    # 探索策略
+    epsilon_start: 1.0  # 初始探索率
+    epsilon_end: 0.01  # 最終探索率
+    epsilon_decay: 0.995  # 衰減率
+    
+    # 更新頻率
+    target_update: 1000  # 目標網路更新頻率
+    train_frequency: 4  # 訓練頻率
+    
+    # 儲存設定
+    save_frequency: 100  # 每 100 episodes 儲存一次
+    checkpoint_dir: "data/models/checkpoints"
+
+# ===== 動作空間定義 =====
+actions:
+  # 遊戲操作
+  action_space:
+    - "attack_enemy_1"
+    - "attack_enemy_2"
+    - "attack_enemy_3"
+    - "use_skill_1"
+    - "use_skill_2"
+    - "use_skill_3"
+    - "use_ultimate"
+    - "wait"
+  
+  # 點擊座標 (相對於遊戲視窗，需手動調整)
+  coordinates:
+    skill_1: [200, 600]
+    skill_2: [400, 600]
+    skill_3: [600, 600]
+    ultimate: [800, 600]
+    enemy_1: [300, 200]
+    enemy_2: [640, 200]
+    enemy_3: [980, 200]
+
+# ===== 獎勵系統 =====
+rewards:
+  enemy_defeated: 100
+  damage_dealt: 10  # 每點傷害
+  player_damaged: -20  # 我方受傷懲罰
+  player_defeated: -200
+  stage_cleared: 500
+  time_penalty: -1  # 每回合，鼓勵快速通關
+
+# ===== 自動化設定 =====
+automation:
+  # ADB 連接
+  adb:
+    host: "127.0.0.1"
+    port: 5559  # 自動掃描偵測到的埠號
+    path: "D:\\cheat\\luck-raiders-ai-bot\\tools\\platform-tools\\adb.exe"
+  
+  # 操作延遲 (秒)
+  delays:
+    click: 0.1
+    swipe: 0.3
+    between_actions: 0.5
+    battle_start: 2.0
+    battle_end: 3.0
+
+# ===== 訓練設定 =====
+training:
+  max_episodes: 10000  # 最大訓練回合
+  max_steps_per_episode: 500  # 每回合最大步數
+  eval_frequency: 50  # 每 50 回合評估一次
+  eval_episodes: 10  # 評估時執行的遊戲場次
+  
+  # 記錄設定
+  log_frequency: 10  # 每 10 回合記錄一次
+  tensorboard: true
+  save_video: false  # 是否儲存遊戲影片（佔空間）
+
+# ===== 記憶體優化 =====
+optimization:
+  # 混合精度訓練 (減少 VRAM 使用)
+  mixed_precision: true
+  
+  # 梯度累積 (模擬更大的 batch size)
+  gradient_accumulation_steps: 2
+  
+  # 記憶體清理
+  clear_cache_frequency: 100  # 每 100 步清理一次 CUDA cache
+  
+  # 資料載入優化
+  pin_memory: true
+  persistent_workers: true
+
+# ===== 日誌設定 =====
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  log_dir: "logs"
+  console_output: true
+  file_output: true
+  
+  # TensorBoard
+  tensorboard_dir: "runs"
